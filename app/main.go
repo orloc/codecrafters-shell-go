@@ -8,18 +8,22 @@ import (
 )
 
 func main() {
-
 	reader := bufio.NewReader(os.Stdin)
-
-	fmt.Print("$ ")
-
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Println(err)
-		return
+	for {
+		fmt.Print("$ ")
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		processCmd(input)
 	}
+}
 
+func processCmd(s string) {
 	// strip the \n
-	fmt.Printf("%s: command not found\n", strings.Replace(input, "\n", "", -1))
-
+	switch s {
+	default:
+		fmt.Printf("%s: command not found\n", strings.Replace(s, "\n", "", -1))
+	}
 }
