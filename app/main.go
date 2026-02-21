@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+var validCmds = map[string]struct{}{
+	"type": {},
+	"exit": {},
+	"echo": {},
+}
+
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 	for {
@@ -25,14 +31,19 @@ func trimInput(s string) (string, []string) {
 	// split the cmd arg out from params
 	args := strings.Split(sTrimed, " ")
 
-	return sTrimed, args
+	return sTrimed, args[1:]
 }
 
 func processCmd(s string, args []string) {
 	// strip the \n
-	switch args[0] {
+	switch s {
+	case "type":
+		if _, ok := validCmds[s]; !ok {
+			fmt.Printf("%s: not found\n", s)
+		}
+		fmt.Printf("%s is a shell builtin\n", s)
 	case "echo":
-		fmt.Printf("%s\n", strings.Join(args[1:], " "))
+		fmt.Printf("%s\n", strings.Join(args, " "))
 	case "exit":
 		os.Exit(0)
 	default:
