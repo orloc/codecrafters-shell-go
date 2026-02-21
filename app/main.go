@@ -22,10 +22,11 @@ func main() {
 
 func processCmd(s string) {
 	// strip the \n
-	switch s {
+	sTrimed := strings.Replace(strings.TrimSpace(s), "\n", "", -1)
+	switch sTrimed {
 	case "exit":
 		os.Exit(0)
 	default:
-		fmt.Printf("%s: command not found\n", strings.Replace(s, "\n", "", -1))
+		fmt.Printf("%s: command not found\n", sTrimed)
 	}
 }
