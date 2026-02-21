@@ -16,17 +16,26 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		processCmd(input)
+		processCmd(trimInput(input))
 	}
 }
 
-func processCmd(s string) {
-	// strip the \n
+func trimInput(s string) (string, []string) {
 	sTrimed := strings.Replace(strings.TrimSpace(s), "\n", "", -1)
-	switch sTrimed {
+	// split the cmd arg out from params
+	args := strings.Split(sTrimed, " ")
+
+	return sTrimed, args
+}
+
+func processCmd(s string, args []string) {
+	// strip the \n
+	switch args[0] {
+	case "echo":
+		fmt.Printf("%s\n", strings.Join(args[1:], " "))
 	case "exit":
 		os.Exit(0)
 	default:
-		fmt.Printf("%s: command not found\n", sTrimed)
+		fmt.Printf("%s: command not found\n", s)
 	}
 }
