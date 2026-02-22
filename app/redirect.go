@@ -1,3 +1,7 @@
+// redirect.go — file-based I/O redirection (>, >>, 1>, 2>).
+//
+// openRedirects opens target files and returns replacement stdout/stderr
+// writers plus a cleanup function that closes files and restores originals.
 package main
 
 import "os"

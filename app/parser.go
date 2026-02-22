@@ -1,3 +1,17 @@
+// parser.go — shell input parsing: pipelines, redirections, and tokenization.
+//
+// Parsing layers (top-down):
+//
+//	parseCommand(input)        entry point for a single command segment
+//	  -> parseRedirection      extract >, >>, 1>, 2> operators
+//	  -> trimInput             tokenize command text into name + args
+//	       -> nextToken        resolve quotes/escapes for one token
+//
+//	parsePipeline(input)       split on unquoted '|' (called before parseCommand)
+//
+// Quote handling has two modes:
+//   - quoteTracker: preserves raw quote chars (used by parsePipeline, parseRedirection)
+//   - nextToken: resolves/strips quotes and interprets escapes (used by trimInput)
 package main
 
 import (
@@ -5,16 +19,12 @@ import (
 	"strings"
 )
 
-// --- Types ---
-
 // parsedCommand holds the result of parsing a single command segment.
 type parsedCommand struct {
 	Name      string
 	Args      []string
 	Redirects []Redirect
 }
-
-// --- Entry points (called from handleInput / startSegment) ---
 
 // parseCommand parses a raw input segment into a command name, arguments,
 // and any I/O redirections.
@@ -53,8 +63,6 @@ func parsePipeline(s string) []string {
 	segments = append(segments, buf.String())
 	return segments
 }
-
-// --- Mid-level parsing ---
 
 // parseRedirection separates redirect operators (>, >>, 1>, 2>, etc.) from
 // the command text, returning the command portion and a slice of Redirects.
@@ -148,8 +156,6 @@ func trimInput(s string) (string, []string) {
 	}
 	return args[0], args[1:]
 }
-
-// --- Low-level scanning helpers ---
 
 // quoteTracker tracks single/double quote state while scanning a shell string.
 // Used by parsePipeline and parseRedirection to share quoting logic.

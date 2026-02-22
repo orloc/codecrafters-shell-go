@@ -15,6 +15,9 @@ var hist *History
 // sets up readline, and enters the read-eval loop.
 func main() {
 	hist = NewHistory()
+	if path := os.Getenv("HISTFILE"); path != "" {
+		hist.ReadFile(path)
+	}
 	newRegistry()
 	initCommandTrie()
 	rl, err := readline.NewEx(&readline.Config{

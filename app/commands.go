@@ -1,3 +1,7 @@
+// commands.go — builtin command registry (cd, pwd, echo, exit, type, history).
+//
+// newRegistry() builds the map; GetCommand() looks up by name. Each command
+// is a simple function value — no interface needed at this scale.
 package main
 
 import (

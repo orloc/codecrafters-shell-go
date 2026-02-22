@@ -1,3 +1,12 @@
+// history.go — in-memory command history with file persistence.
+//
+// History tracks entries as a simple []string. File operations:
+//   - ReadFile:   load from disk, appending to in-memory list
+//   - WriteFile:  overwrite file with all entries
+//   - AppendFile: append only new (unflushed) entries since last call
+//
+// The lastFlushed index tracks the boundary for AppendFile so repeated
+// calls don't duplicate entries.
 package main
 
 import (

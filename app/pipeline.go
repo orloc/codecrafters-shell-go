@@ -1,3 +1,17 @@
+// pipeline.go — multi-command pipe execution (cmd1 | cmd2 | ...).
+//
+// Flow:
+//
+//	executePipeline(segments)
+//	  -> createPipes          allocate N-1 os.Pipe pairs
+//	  -> for each segment:
+//	       startSegment       parse, wire I/O, dispatch
+//	         -> startBuiltin  run in goroutine with swapped os.Stdout
+//	         -> startExternal cmd.Start (non-blocking)
+//	  -> wait                 wait for all procs/goroutines to finish
+//
+// Pipe ownership: the parent closes its copy of each pipe end after the
+// child process/goroutine has inherited it (closeParentEnds).
 package main
 
 import (
@@ -7,13 +21,15 @@ import (
 	"os/exec"
 )
 
-// --- Types ---
-
+// proc tracks a single pipeline segment — either an external process
+// (cmd) or a builtin running in a goroutine (done channel).
 type proc struct {
 	cmd  *exec.Cmd
 	done chan struct{}
 }
 
+// pipeline holds the state for a multi-segment pipe execution: the pipe
+// file descriptors and the processes/goroutines spawned for each segment.
 type pipeline struct {
 	n     int        // number of segments
 	pipeR []*os.File // read ends between segments
@@ -21,8 +37,8 @@ type pipeline struct {
 	procs []proc
 }
 
-// --- Entry point ---
-
+// executePipeline creates pipes, starts every segment, then waits for all
+// to finish.
 func executePipeline(segments []string) {
 	p := &pipeline{n: len(segments)}
 	if err := p.createPipes(); err != nil {
@@ -50,8 +66,6 @@ func executePipeline(segments []string) {
 
 	p.wait()
 }
-
-// --- Core segment execution ---
 
 // startSegment parses, wires I/O, and launches segment i. It returns an
 // optional redirect cleanup function and any error that prevents execution.
@@ -89,6 +103,8 @@ func (p *pipeline) startSegment(i int, seg string) (cleanup func(), err error) {
 	return cleanup, nil
 }
 
+// startBuiltin runs a builtin command in a goroutine, temporarily swapping
+// os.Stdout/os.Stderr so fmt.Print* calls write to the pipe.
 func (p *pipeline) startBuiltin(i int, builtin Command, args []string, stdout, stderr *os.File) {
 	done := make(chan struct{})
 	p.procs[i] = proc{done: done}
@@ -104,6 +120,7 @@ func (p *pipeline) startBuiltin(i int, builtin Command, args []string, stdout, s
 	}()
 }
 
+// startExternal spawns an external process with cmd.Start (non-blocking).
 func (p *pipeline) startExternal(i int, name string, args []string, stdin, stdout, stderr *os.File) error {
 	c := exec.Command(name, args...)
 	c.Stdin = stdin
@@ -120,8 +137,7 @@ func (p *pipeline) startExternal(i int, name string, args []string, stdin, stdou
 	return nil
 }
 
-// --- Pipe plumbing ---
-
+// createPipes allocates N-1 os.Pipe pairs to connect adjacent segments.
 func (p *pipeline) createPipes() error {
 	p.pipeR = make([]*os.File, p.n-1)
 	p.pipeW = make([]*os.File, p.n-1)
@@ -138,6 +154,7 @@ func (p *pipeline) createPipes() error {
 	return nil
 }
 
+// closePipes closes all remaining open pipe file descriptors (error cleanup).
 func (p *pipeline) closePipes() {
 	for i := range p.pipeR {
 		if p.pipeR[i] != nil {
@@ -176,6 +193,7 @@ func (p *pipeline) closeParentEnds(i int) {
 	}
 }
 
+// wait blocks until every segment has finished (cmd.Wait or channel recv).
 func (p *pipeline) wait() {
 	for _, pr := range p.procs {
 		if pr.cmd != nil {
