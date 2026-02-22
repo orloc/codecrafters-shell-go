@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -66,6 +67,18 @@ func initCommandTrie() {
 	commandTrie = newTrie()
 	for name := range registry {
 		commandTrie.Insert(name)
+	}
+	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			commandTrie.Insert(e.Name())
+		}
 	}
 }
 
