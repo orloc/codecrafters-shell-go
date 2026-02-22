@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -22,19 +23,19 @@ func main() {
 			cmd.Run(args)
 			continue
 		}
+
 		// first see if the command we got exists on the file system
 		// if it does and its executable - we should run it with the args passed to us
-		p, err := exec.LookPath(name)
-		if err != nil {
-			fmt.Printf("%s: command not found\n", name)
-			continue
-		}
-
-		cmd := exec.Command(p, args...)
+		cmd := exec.Command(name, args...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err = cmd.Run(); err != nil {
+			if errors.Is(err, exec.ErrNotFound) {
+				fmt.Printf("%s: command not found\n", name)
+				continue
+			}
 			fmt.Println(err)
+			continue
 		}
 	}
 }
