@@ -54,6 +54,12 @@ func trimInput(s string) (string, []string) {
 		ch := s[i]
 
 		switch {
+		case ch == '\\' && !inSingleQ && !inDoubleQ:
+			if i+1 < len(s) {
+				i++
+				current.WriteByte(s[i])
+				hasContent = true
+			}
 		case ch == '\'' && !inDoubleQ && inSingleQ:
 			inSingleQ = false
 		case ch == '\'' && !inDoubleQ:

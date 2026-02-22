@@ -127,6 +127,42 @@ func TestTrimInput(t *testing.T) {
 			wantArgs: []string{"hello", "world"},
 		},
 		{
+			name:     "backslash escapes space to join args",
+			input:    "echo three\\ \\ \\ spaces\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"three   spaces"},
+		},
+		{
+			name:     "backslash preserves first space only",
+			input:    "echo before\\     after\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"before ", "after"},
+		},
+		{
+			name:     "backslash letter is literal letter",
+			input:    "echo test\\nexample\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"testnexample"},
+		},
+		{
+			name:     "backslash escapes backslash",
+			input:    "echo hello\\\\world\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"hello\\world"},
+		},
+		{
+			name:     "backslash escapes single quotes",
+			input:    "echo \\'hello\\'\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"'hello'"},
+		},
+		{
+			name:     "backslash escapes double quotes",
+			input:    "echo \\\"hello\\\"\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"\"hello\""},
+		},
+		{
 			name: "empty input",
 			input: "   \n",
 		},
