@@ -17,6 +17,30 @@ var registry map[string]Command
 
 func init() {
 	registry = map[string]Command{
+		"cd": {
+			Name: "cd",
+			Run: func(args []string) {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					fmt.Println(err)
+				}
+				if len(args) == 0 {
+					os.Chdir(home)
+					return
+				}
+
+				path := args[0]
+
+				if path == "~" {
+					os.Chdir(home)
+					return
+				}
+
+				if err = os.Chdir(path); err != nil {
+					fmt.Printf("cd: %s: No such file or directory\n", path)
+				}
+			},
+		},
 		"pwd": {
 			Name: "pwd",
 			Run: func(args []string) {
