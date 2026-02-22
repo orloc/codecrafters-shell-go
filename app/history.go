@@ -48,6 +48,22 @@ func writeHistoryFile(path string) error {
 	return w.Flush()
 }
 
+// appendHistoryFile appends all in-memory history entries to path,
+// creating the file if it doesn't exist.
+func appendHistoryFile(path string) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	w := bufio.NewWriter(f)
+	for _, line := range commandHistory {
+		fmt.Fprintln(w, line)
+	}
+	return w.Flush()
+}
+
 // printHistory prints the last n history entries (or all if n <= 0).
 func printHistory(n int) {
 	start := 0

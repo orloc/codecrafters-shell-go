@@ -96,6 +96,11 @@ func init() {
 							fmt.Fprintf(os.Stderr, "history: %s\n", err)
 						}
 						return
+					case "-a":
+						if err := appendHistoryFile(args[1]); err != nil {
+							fmt.Fprintf(os.Stderr, "history: %s\n", err)
+						}
+						return
 					}
 				}
 				n := 0
