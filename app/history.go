@@ -26,6 +26,12 @@ func NewHistory() *History {
 	return &History{}
 }
 
+// MarkFlushed advances the flush cursor to the current end of history,
+// so a subsequent AppendFile only writes entries added after this point.
+func (h *History) MarkFlushed() {
+	h.lastFlushed = len(h.entries)
+}
+
 // Record appends a raw input line to the history.
 func (h *History) Record(input string) {
 	h.entries = append(h.entries, input)

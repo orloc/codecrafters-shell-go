@@ -62,6 +62,7 @@ func newRegistry() {
 		},
 		"exit": {
 			Run: func(args []string) {
+				saveHistory()
 				os.Exit(0)
 			},
 		},

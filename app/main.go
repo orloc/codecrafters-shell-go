@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
+	"syscall"
 
 	"github.com/chzyer/readline"
 )
@@ -17,7 +19,17 @@ func main() {
 	hist = NewHistory()
 	if path := os.Getenv("HISTFILE"); path != "" {
 		hist.ReadFile(path)
+		hist.MarkFlushed() // don't re-append loaded entries on exit
 	}
+	// Save history on SIGTERM/SIGHUP (signals that bypass the readline loop).
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGHUP)
+	go func() {
+		<-sigCh
+		saveHistory()
+		os.Exit(0)
+	}()
+
 	newRegistry()
 	initCommandTrie()
 	rl, err := readline.NewEx(&readline.Config{
@@ -36,6 +48,15 @@ func main() {
 			break
 		}
 		handleInput(line)
+	}
+
+	saveHistory()
+}
+
+// saveHistory appends new (unflushed) history entries to HISTFILE if set.
+func saveHistory() {
+	if path := os.Getenv("HISTFILE"); path != "" {
+		hist.AppendFile(path)
 	}
 }
 
