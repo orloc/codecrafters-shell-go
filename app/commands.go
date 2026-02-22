@@ -84,7 +84,11 @@ func init() {
 		"history": {
 			Name: "history",
 			Run: func(args []string) {
-				printHistory()
+				n := 0
+				if len(args) > 0 {
+					fmt.Sscan(args[0], &n)
+				}
+				printHistory(n)
 			},
 		},
 	}
