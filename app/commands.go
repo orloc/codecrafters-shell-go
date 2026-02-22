@@ -84,6 +84,12 @@ func init() {
 		"history": {
 			Name: "history",
 			Run: func(args []string) {
+				if len(args) >= 2 && args[0] == "-r" {
+					if err := readHistoryFile(args[1]); err != nil {
+						fmt.Fprintf(os.Stderr, "history: %s\n", err)
+					}
+					return
+				}
 				n := 0
 				if len(args) > 0 {
 					fmt.Sscan(args[0], &n)
