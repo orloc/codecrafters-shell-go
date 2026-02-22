@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"sort"
 	"strings"
 )
@@ -76,6 +78,11 @@ func (b *builtinCompleter) Do(line []rune, pos int) ([][]rune, int) {
 	}
 
 	matches := commandTrie.FindByPrefix(prefix)
+
+	if len(matches) == 0 {
+		fmt.Fprint(os.Stderr, "\x07")
+		return nil, 0
+	}
 
 	var candidates [][]rune
 	for _, m := range matches {
