@@ -41,9 +41,42 @@ func main() {
 }
 
 func trimInput(s string) (string, []string) {
-	sTrimed := strings.Replace(strings.TrimSpace(s), "\n", "", -1)
-	// split the cmd arg out from params
-	args := strings.Split(sTrimed, " ")
+	s = strings.TrimSpace(s)
+	var (
+		args       []string
+		current    strings.Builder
+		inQuote    = false
+		hasContent = false
+	)
+
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+
+		switch {
+		case ch == '\'' && inQuote:
+			inQuote = false
+		case ch == '\'':
+			inQuote = true
+			hasContent = true
+		case ch == ' ' && !inQuote:
+			if hasContent {
+				args = append(args, current.String())
+				current.Reset()
+				hasContent = false
+			}
+		default:
+			current.WriteByte(ch)
+			hasContent = true
+		}
+	}
+
+	if hasContent {
+		args = append(args, current.String())
+	}
+
+	if len(args) == 0 {
+		return "", nil
+	}
 
 	return args[0], args[1:]
 }

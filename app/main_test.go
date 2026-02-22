@@ -15,10 +15,9 @@ func TestTrimInput(t *testing.T) {
 		wantArgs []string
 	}{
 		{
-			name:     "simple command no args",
-			input:    "echo\n",
-			wantCmd:  "echo",
-			wantArgs: []string{},
+			name:    "simple command no args",
+			input:   "echo\n",
+			wantCmd: "echo",
 		},
 		{
 			name:     "command with one arg",
@@ -39,10 +38,49 @@ func TestTrimInput(t *testing.T) {
 			wantArgs: []string{"echo"},
 		},
 		{
-			name:     "exit command",
-			input:    "exit\n",
-			wantCmd:  "exit",
-			wantArgs: []string{},
+			name:    "exit command",
+			input:   "exit\n",
+			wantCmd: "exit",
+		},
+		{
+			name:     "single-quoted arg preserves spaces",
+			input:    "echo 'hello world'\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"hello world"},
+		},
+		{
+			name:     "multiple single-quoted args",
+			input:    "echo 'hello' 'world'\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"hello", "world"},
+		},
+		{
+			name:     "mixed quoted and unquoted args",
+			input:    "echo hello 'big world' foo\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"hello", "big world", "foo"},
+		},
+		{
+			name:     "empty quoted string is preserved",
+			input:    "echo '' foo\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"", "foo"},
+		},
+		{
+			name:     "adjacent quotes concatenate",
+			input:    "echo 'hello''world'\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"helloworld"},
+		},
+		{
+			name:     "multiple spaces between args",
+			input:    "echo   hello   world\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"hello", "world"},
+		},
+		{
+			name: "empty input",
+			input: "   \n",
 		},
 	}
 
