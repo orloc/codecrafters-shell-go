@@ -6,17 +6,25 @@ import (
 	"os"
 )
 
-var commandHistory []string
-var lastFlushed int // index of first unflushed entry for -a
-
-// recordHistory appends a raw input line to the history.
-func recordHistory(input string) {
-	commandHistory = append(commandHistory, input)
+// History tracks shell command history in memory with file I/O support.
+type History struct {
+	entries     []string
+	lastFlushed int
 }
 
-// readHistoryFile reads lines from path and appends them to the in-memory
+// NewHistory creates an empty history.
+func NewHistory() *History {
+	return &History{}
+}
+
+// Record appends a raw input line to the history.
+func (h *History) Record(input string) {
+	h.entries = append(h.entries, input)
+}
+
+// ReadFile reads lines from path and appends them to the in-memory
 // history. Empty lines are skipped.
-func readHistoryFile(path string) error {
+func (h *History) ReadFile(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -27,15 +35,15 @@ func readHistoryFile(path string) error {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line != "" {
-			commandHistory = append(commandHistory, line)
+			h.entries = append(h.entries, line)
 		}
 	}
 	return scanner.Err()
 }
 
-// writeHistoryFile writes all in-memory history entries to path,
+// WriteFile writes all in-memory history entries to path,
 // creating the file if it doesn't exist. Each entry is followed by a newline.
-func writeHistoryFile(path string) error {
+func (h *History) WriteFile(path string) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
@@ -43,15 +51,15 @@ func writeHistoryFile(path string) error {
 	defer f.Close()
 
 	w := bufio.NewWriter(f)
-	for _, line := range commandHistory {
+	for _, line := range h.entries {
 		fmt.Fprintln(w, line)
 	}
 	return w.Flush()
 }
 
-// appendHistoryFile appends only new (unflushed) in-memory history entries
+// AppendFile appends only new (unflushed) in-memory history entries
 // to path, creating the file if it doesn't exist.
-func appendHistoryFile(path string) error {
+func (h *History) AppendFile(path string) error {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
 		return err
@@ -59,20 +67,20 @@ func appendHistoryFile(path string) error {
 	defer f.Close()
 
 	w := bufio.NewWriter(f)
-	for _, line := range commandHistory[lastFlushed:] {
+	for _, line := range h.entries[h.lastFlushed:] {
 		fmt.Fprintln(w, line)
 	}
-	lastFlushed = len(commandHistory)
+	h.lastFlushed = len(h.entries)
 	return w.Flush()
 }
 
-// printHistory prints the last n history entries (or all if n <= 0).
-func printHistory(n int) {
+// Print prints the last n history entries (or all if n <= 0).
+func (h *History) Print(n int) {
 	start := 0
-	if n > 0 && n < len(commandHistory) {
-		start = len(commandHistory) - n
+	if n > 0 && n < len(h.entries) {
+		start = len(h.entries) - n
 	}
-	for i := start; i < len(commandHistory); i++ {
-		fmt.Printf("%5d  %s\n", i+1, commandHistory[i])
+	for i := start; i < len(h.entries); i++ {
+		fmt.Printf("%5d  %s\n", i+1, h.entries[i])
 	}
 }

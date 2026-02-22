@@ -9,9 +9,13 @@ import (
 	"github.com/chzyer/readline"
 )
 
+var hist *History
+
 // main starts the shell: populates the command trie for TAB completion,
 // sets up readline, and enters the read-eval loop.
 func main() {
+	hist = NewHistory()
+	newRegistry()
 	initCommandTrie()
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:       "$ ",
@@ -46,7 +50,7 @@ func main() {
 //	  -> GetCommand          look up builtin; if found, run in-process
 //	     or exec.Command     otherwise spawn an external process
 func handleInput(input string) {
-	recordHistory(input)
+	hist.Record(input)
 
 	// Split on pipes first; delegate multi-segment pipelines.
 	segments := parsePipeline(input)

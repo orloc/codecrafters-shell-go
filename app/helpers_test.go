@@ -7,6 +7,13 @@ import (
 	"testing"
 )
 
+// TestMain initializes shared state (registry, history) before any tests run.
+func TestMain(m *testing.M) {
+	hist = NewHistory()
+	newRegistry()
+	os.Exit(m.Run())
+}
+
 // captureStdout runs fn and returns whatever it wrote to os.Stdout.
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()

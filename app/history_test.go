@@ -6,91 +6,79 @@ import (
 	"testing"
 )
 
-// resetHistory clears the global commandHistory for test isolation.
-func resetHistory() {
-	commandHistory = nil
-	lastFlushed = 0
-}
+func TestRecord(t *testing.T) {
+	h := NewHistory()
 
-func TestRecordHistory(t *testing.T) {
-	resetHistory()
-	defer resetHistory()
+	h.Record("echo hello")
+	h.Record("ls -la")
 
-	recordHistory("echo hello")
-	recordHistory("ls -la")
-
-	if len(commandHistory) != 2 {
-		t.Fatalf("expected 2 entries, got %d", len(commandHistory))
+	if len(h.entries) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(h.entries))
 	}
-	if commandHistory[0] != "echo hello" {
-		t.Errorf("entry 0 = %q, want %q", commandHistory[0], "echo hello")
+	if h.entries[0] != "echo hello" {
+		t.Errorf("entry 0 = %q, want %q", h.entries[0], "echo hello")
 	}
-	if commandHistory[1] != "ls -la" {
-		t.Errorf("entry 1 = %q, want %q", commandHistory[1], "ls -la")
+	if h.entries[1] != "ls -la" {
+		t.Errorf("entry 1 = %q, want %q", h.entries[1], "ls -la")
 	}
 }
 
-func TestReadHistoryFile(t *testing.T) {
+func TestReadFile(t *testing.T) {
 	t.Run("reads non-empty lines", func(t *testing.T) {
-		resetHistory()
-		defer resetHistory()
-
+		h := NewHistory()
 		path := filepath.Join(t.TempDir(), "history")
 		os.WriteFile(path, []byte("echo hello\necho world\n\n"), 0644)
 
-		if err := readHistoryFile(path); err != nil {
+		if err := h.ReadFile(path); err != nil {
 			t.Fatal(err)
 		}
-		if len(commandHistory) != 2 {
-			t.Fatalf("expected 2 entries, got %d", len(commandHistory))
+		if len(h.entries) != 2 {
+			t.Fatalf("expected 2 entries, got %d", len(h.entries))
 		}
-		if commandHistory[0] != "echo hello" {
-			t.Errorf("entry 0 = %q, want %q", commandHistory[0], "echo hello")
+		if h.entries[0] != "echo hello" {
+			t.Errorf("entry 0 = %q, want %q", h.entries[0], "echo hello")
 		}
-		if commandHistory[1] != "echo world" {
-			t.Errorf("entry 1 = %q, want %q", commandHistory[1], "echo world")
+		if h.entries[1] != "echo world" {
+			t.Errorf("entry 1 = %q, want %q", h.entries[1], "echo world")
 		}
 	})
 
 	t.Run("appends to existing history", func(t *testing.T) {
-		resetHistory()
-		defer resetHistory()
-
-		recordHistory("first")
+		h := NewHistory()
+		h.Record("first")
 		path := filepath.Join(t.TempDir(), "history")
 		os.WriteFile(path, []byte("second\n"), 0644)
 
-		if err := readHistoryFile(path); err != nil {
+		if err := h.ReadFile(path); err != nil {
 			t.Fatal(err)
 		}
-		if len(commandHistory) != 2 {
-			t.Fatalf("expected 2 entries, got %d", len(commandHistory))
+		if len(h.entries) != 2 {
+			t.Fatalf("expected 2 entries, got %d", len(h.entries))
 		}
-		if commandHistory[0] != "first" {
-			t.Errorf("entry 0 = %q, want %q", commandHistory[0], "first")
+		if h.entries[0] != "first" {
+			t.Errorf("entry 0 = %q, want %q", h.entries[0], "first")
 		}
-		if commandHistory[1] != "second" {
-			t.Errorf("entry 1 = %q, want %q", commandHistory[1], "second")
+		if h.entries[1] != "second" {
+			t.Errorf("entry 1 = %q, want %q", h.entries[1], "second")
 		}
 	})
 
 	t.Run("returns error for missing file", func(t *testing.T) {
-		if err := readHistoryFile("/nonexistent/path"); err == nil {
+		h := NewHistory()
+		if err := h.ReadFile("/nonexistent/path"); err == nil {
 			t.Error("expected error for missing file")
 		}
 	})
 }
 
-func TestWriteHistoryFile(t *testing.T) {
+func TestWriteFile(t *testing.T) {
 	t.Run("writes all entries with trailing newline", func(t *testing.T) {
-		resetHistory()
-		defer resetHistory()
-
-		recordHistory("echo hello")
-		recordHistory("echo world")
+		h := NewHistory()
+		h.Record("echo hello")
+		h.Record("echo world")
 
 		path := filepath.Join(t.TempDir(), "history")
-		if err := writeHistoryFile(path); err != nil {
+		if err := h.WriteFile(path); err != nil {
 			t.Fatal(err)
 		}
 
@@ -105,12 +93,10 @@ func TestWriteHistoryFile(t *testing.T) {
 	})
 
 	t.Run("creates file if it does not exist", func(t *testing.T) {
-		resetHistory()
-		defer resetHistory()
-
-		recordHistory("cmd")
+		h := NewHistory()
+		h.Record("cmd")
 		path := filepath.Join(t.TempDir(), "new_history")
-		if err := writeHistoryFile(path); err != nil {
+		if err := h.WriteFile(path); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := os.Stat(path); err != nil {
@@ -119,11 +105,9 @@ func TestWriteHistoryFile(t *testing.T) {
 	})
 
 	t.Run("empty history writes empty file", func(t *testing.T) {
-		resetHistory()
-		defer resetHistory()
-
+		h := NewHistory()
 		path := filepath.Join(t.TempDir(), "history")
-		if err := writeHistoryFile(path); err != nil {
+		if err := h.WriteFile(path); err != nil {
 			t.Fatal(err)
 		}
 		data, _ := os.ReadFile(path)
@@ -133,16 +117,14 @@ func TestWriteHistoryFile(t *testing.T) {
 	})
 }
 
-func TestAppendHistoryFile(t *testing.T) {
+func TestAppendFile(t *testing.T) {
 	t.Run("appends to existing file", func(t *testing.T) {
-		resetHistory()
-		defer resetHistory()
-
+		h := NewHistory()
 		path := filepath.Join(t.TempDir(), "history")
 		os.WriteFile(path, []byte("old command\n"), 0644)
 
-		recordHistory("new command")
-		if err := appendHistoryFile(path); err != nil {
+		h.Record("new command")
+		if err := h.AppendFile(path); err != nil {
 			t.Fatal(err)
 		}
 
@@ -154,12 +136,10 @@ func TestAppendHistoryFile(t *testing.T) {
 	})
 
 	t.Run("creates file if it does not exist", func(t *testing.T) {
-		resetHistory()
-		defer resetHistory()
-
-		recordHistory("cmd")
+		h := NewHistory()
+		h.Record("cmd")
 		path := filepath.Join(t.TempDir(), "new_history")
-		if err := appendHistoryFile(path); err != nil {
+		if err := h.AppendFile(path); err != nil {
 			t.Fatal(err)
 		}
 
@@ -171,16 +151,14 @@ func TestAppendHistoryFile(t *testing.T) {
 	})
 
 	t.Run("second append only writes new entries", func(t *testing.T) {
-		resetHistory()
-		defer resetHistory()
-
+		h := NewHistory()
 		path := filepath.Join(t.TempDir(), "history")
 
-		recordHistory("first")
-		appendHistoryFile(path)
+		h.Record("first")
+		h.AppendFile(path)
 
-		recordHistory("second")
-		appendHistoryFile(path)
+		h.Record("second")
+		h.AppendFile(path)
 
 		data, _ := os.ReadFile(path)
 		want := "first\nsecond\n"
@@ -190,13 +168,11 @@ func TestAppendHistoryFile(t *testing.T) {
 	})
 
 	t.Run("empty history appends nothing", func(t *testing.T) {
-		resetHistory()
-		defer resetHistory()
-
+		h := NewHistory()
 		path := filepath.Join(t.TempDir(), "history")
 		os.WriteFile(path, []byte("existing\n"), 0644)
 
-		if err := appendHistoryFile(path); err != nil {
+		if err := h.AppendFile(path); err != nil {
 			t.Fatal(err)
 		}
 
@@ -208,46 +184,40 @@ func TestAppendHistoryFile(t *testing.T) {
 	})
 }
 
-func TestPrintHistory(t *testing.T) {
+func TestPrint(t *testing.T) {
 	t.Run("prints all entries", func(t *testing.T) {
-		resetHistory()
-		defer resetHistory()
+		h := NewHistory()
+		h.Record("echo hello")
+		h.Record("echo world")
 
-		recordHistory("echo hello")
-		recordHistory("echo world")
-
-		got := captureStdout(t, func() { printHistory(0) })
+		got := captureStdout(t, func() { h.Print(0) })
 		want := "    1  echo hello\n    2  echo world\n"
 		if got != want {
-			t.Errorf("printHistory(0) = %q, want %q", got, want)
+			t.Errorf("Print(0) = %q, want %q", got, want)
 		}
 	})
 
 	t.Run("prints last n entries", func(t *testing.T) {
-		resetHistory()
-		defer resetHistory()
+		h := NewHistory()
+		h.Record("first")
+		h.Record("second")
+		h.Record("third")
 
-		recordHistory("first")
-		recordHistory("second")
-		recordHistory("third")
-
-		got := captureStdout(t, func() { printHistory(2) })
+		got := captureStdout(t, func() { h.Print(2) })
 		want := "    2  second\n    3  third\n"
 		if got != want {
-			t.Errorf("printHistory(2) = %q, want %q", got, want)
+			t.Errorf("Print(2) = %q, want %q", got, want)
 		}
 	})
 
 	t.Run("n larger than history prints all", func(t *testing.T) {
-		resetHistory()
-		defer resetHistory()
+		h := NewHistory()
+		h.Record("only")
 
-		recordHistory("only")
-
-		got := captureStdout(t, func() { printHistory(10) })
+		got := captureStdout(t, func() { h.Print(10) })
 		want := "    1  only\n"
 		if got != want {
-			t.Errorf("printHistory(10) = %q, want %q", got, want)
+			t.Errorf("Print(10) = %q, want %q", got, want)
 		}
 	})
 }

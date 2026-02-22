@@ -9,16 +9,15 @@ import (
 
 // Command represents a builtin shell command.
 type Command struct {
-	Name string
-	Run  func(args []string)
+	Run func(args []string)
 }
 
 var registry map[string]Command
 
-func init() {
+// newRegistry builds the builtin command registry.
+func newRegistry() {
 	registry = map[string]Command{
 		"cd": {
-			Name: "cd",
 			Run: func(args []string) {
 				home, err := os.UserHomeDir()
 				if err != nil {
@@ -42,7 +41,6 @@ func init() {
 			},
 		},
 		"pwd": {
-			Name: "pwd",
 			Run: func(args []string) {
 				dir, err := os.Getwd()
 				if err != nil {
@@ -54,19 +52,16 @@ func init() {
 			},
 		},
 		"echo": {
-			Name: "echo",
 			Run: func(args []string) {
 				fmt.Printf("%s\n", strings.Join(args, " "))
 			},
 		},
 		"exit": {
-			Name: "exit",
 			Run: func(args []string) {
 				os.Exit(0)
 			},
 		},
 		"type": {
-			Name: "type",
 			Run: func(args []string) {
 				arg := strings.Join(args, " ")
 				if _, ok := registry[arg]; ok {
@@ -82,22 +77,21 @@ func init() {
 			},
 		},
 		"history": {
-			Name: "history",
 			Run: func(args []string) {
 				if len(args) >= 2 {
 					switch args[0] {
 					case "-r":
-						if err := readHistoryFile(args[1]); err != nil {
+						if err := hist.ReadFile(args[1]); err != nil {
 							fmt.Fprintf(os.Stderr, "history: %s\n", err)
 						}
 						return
 					case "-w":
-						if err := writeHistoryFile(args[1]); err != nil {
+						if err := hist.WriteFile(args[1]); err != nil {
 							fmt.Fprintf(os.Stderr, "history: %s\n", err)
 						}
 						return
 					case "-a":
-						if err := appendHistoryFile(args[1]); err != nil {
+						if err := hist.AppendFile(args[1]); err != nil {
 							fmt.Fprintf(os.Stderr, "history: %s\n", err)
 						}
 						return
@@ -107,7 +101,7 @@ func init() {
 				if len(args) > 0 {
 					fmt.Sscan(args[0], &n)
 				}
-				printHistory(n)
+				hist.Print(n)
 			},
 		},
 	}
