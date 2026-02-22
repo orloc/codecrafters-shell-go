@@ -9,6 +9,7 @@ import (
 // resetHistory clears the global commandHistory for test isolation.
 func resetHistory() {
 	commandHistory = nil
+	lastFlushed = 0
 }
 
 func TestRecordHistory(t *testing.T) {
@@ -164,6 +165,25 @@ func TestAppendHistoryFile(t *testing.T) {
 
 		data, _ := os.ReadFile(path)
 		want := "cmd\n"
+		if string(data) != want {
+			t.Errorf("file contents = %q, want %q", string(data), want)
+		}
+	})
+
+	t.Run("second append only writes new entries", func(t *testing.T) {
+		resetHistory()
+		defer resetHistory()
+
+		path := filepath.Join(t.TempDir(), "history")
+
+		recordHistory("first")
+		appendHistoryFile(path)
+
+		recordHistory("second")
+		appendHistoryFile(path)
+
+		data, _ := os.ReadFile(path)
+		want := "first\nsecond\n"
 		if string(data) != want {
 			t.Errorf("file contents = %q, want %q", string(data), want)
 		}

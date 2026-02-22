@@ -7,6 +7,7 @@ import (
 )
 
 var commandHistory []string
+var lastFlushed int // index of first unflushed entry for -a
 
 // recordHistory appends a raw input line to the history.
 func recordHistory(input string) {
@@ -48,8 +49,8 @@ func writeHistoryFile(path string) error {
 	return w.Flush()
 }
 
-// appendHistoryFile appends all in-memory history entries to path,
-// creating the file if it doesn't exist.
+// appendHistoryFile appends only new (unflushed) in-memory history entries
+// to path, creating the file if it doesn't exist.
 func appendHistoryFile(path string) error {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
@@ -58,9 +59,10 @@ func appendHistoryFile(path string) error {
 	defer f.Close()
 
 	w := bufio.NewWriter(f)
-	for _, line := range commandHistory {
+	for _, line := range commandHistory[lastFlushed:] {
 		fmt.Fprintln(w, line)
 	}
+	lastFlushed = len(commandHistory)
 	return w.Flush()
 }
 
