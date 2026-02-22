@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 )
 
 func main() {
@@ -18,76 +17,83 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		name, args := trimInput(input)
-		if cmd, ok := GetCommand(name); ok {
-			cmd.Run(args)
-			continue
-		}
-
-		// first see if the command we got exists on the file system
-		// if it does and its executable - we should run it with the args passed to us
-		cmd := exec.Command(name, args...)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err = cmd.Run(); err != nil {
-			if errors.Is(err, exec.ErrNotFound) {
-				fmt.Printf("%s: command not found\n", name)
-				continue
-			}
-			fmt.Println(err)
-			continue
-		}
+		handleInput(input)
 	}
 }
 
-func trimInput(s string) (string, []string) {
-	s = strings.TrimSpace(s)
-	var (
-		args      []string
-		current   strings.Builder
-		inSingleQ = false
-		inDoubleQ = false
-	)
-	for i := 0; i < len(s); i++ {
-		ch := s[i]
-		switch {
-		case ch == '\\' && inDoubleQ:
-			// inside double quotes, only escape \ and "
-			if i+1 < len(s) && (s[i+1] == '\\' || s[i+1] == '"') {
-				i++
-				current.WriteByte(s[i])
-			} else {
-				// backslash is literal
-				current.WriteByte(ch)
+func handleInput(input string) {
+	cmdPart, redirects, err := parseRedirection(input)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	name, args := trimInput(cmdPart)
+
+	stdout, stderr, cleanup, err := openRedirects(redirects)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	defer cleanup()
+
+	if cmd, ok := GetCommand(name); ok {
+		os.Stdout = stdout
+		os.Stderr = stderr
+		cmd.Run(args)
+		return
+	}
+
+	cmd := exec.Command(name, args...)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	if err = cmd.Run(); err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			fmt.Printf("%s: command not found\n", name)
+			return
+		}
+		fmt.Println(err)
+	}
+}
+
+// openRedirects opens files for each redirect and returns the stdout/stderr
+// writers to use. The returned cleanup function closes all opened files and
+// restores os.Stdout/os.Stderr to their original values.
+func openRedirects(redirects []Redirect) (stdout, stderr *os.File, cleanup func(), err error) {
+	origStdout := os.Stdout
+	origStderr := os.Stderr
+	stdout = origStdout
+	stderr = origStderr
+
+	var files []*os.File
+	for _, r := range redirects {
+		var f *os.File
+		if r.Op == ">" {
+			f, err = os.Create(r.File)
+		} else {
+			f, err = os.OpenFile(r.File, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		}
+		if err != nil {
+			for _, cf := range files {
+				cf.Close()
 			}
-		case ch == '\\' && !inSingleQ && !inDoubleQ:
-			// outside quotes, escape next character
-			if i+1 < len(s) {
-				i++
-				current.WriteByte(s[i])
-			}
-		case ch == '\'' && !inDoubleQ && inSingleQ:
-			inSingleQ = false
-		case ch == '\'' && !inDoubleQ:
-			inSingleQ = true
-		case ch == '"' && !inSingleQ && inDoubleQ:
-			inDoubleQ = false
-		case ch == '"' && !inSingleQ:
-			inDoubleQ = true
-		case ch == ' ' && !inSingleQ && !inDoubleQ:
-			if current.Len() > 0 {
-				args = append(args, current.String())
-				current.Reset()
-			}
-		default:
-			current.WriteByte(ch)
+			return nil, nil, nil, err
+		}
+		files = append(files, f)
+		if r.Fd == 1 {
+			stdout = f
+		} else {
+			stderr = f
 		}
 	}
-	if current.Len() > 0 {
-		args = append(args, current.String())
+
+	cleanup = func() {
+		os.Stdout = origStdout
+		os.Stderr = origStderr
+		for _, f := range files {
+			f.Close()
+		}
 	}
-	if len(args) == 0 {
-		return "", nil
-	}
-	return args[0], args[1:]
+
+	return stdout, stderr, cleanup, nil
 }

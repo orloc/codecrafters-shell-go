@@ -322,3 +322,110 @@ func TestUnknownCommand(t *testing.T) {
 		t.Error("expected nonexistent command to not be found in registry")
 	}
 }
+
+func TestParseRedirection(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		wantCmd       string
+		wantRedirects []Redirect
+		wantErr       bool
+	}{
+		{
+			name:          "stdout truncate",
+			input:         "echo hello > file.txt",
+			wantCmd:       "echo hello ",
+			wantRedirects: []Redirect{{Fd: 1, Op: ">", File: "file.txt"}},
+		},
+		{
+			name:          "stdout append",
+			input:         "echo hello >> file.txt",
+			wantCmd:       "echo hello ",
+			wantRedirects: []Redirect{{Fd: 1, Op: ">>", File: "file.txt"}},
+		},
+		{
+			name:          "explicit stdout truncate 1>",
+			input:         "echo hello 1> file.txt",
+			wantCmd:       "echo hello ",
+			wantRedirects: []Redirect{{Fd: 1, Op: ">", File: "file.txt"}},
+		},
+		{
+			name:          "explicit stdout append 1>>",
+			input:         "echo hello 1>> file.txt",
+			wantCmd:       "echo hello ",
+			wantRedirects: []Redirect{{Fd: 1, Op: ">>", File: "file.txt"}},
+		},
+		{
+			name:          "stderr truncate 2>",
+			input:         "cmd 2> err.txt",
+			wantCmd:       "cmd ",
+			wantRedirects: []Redirect{{Fd: 2, Op: ">", File: "err.txt"}},
+		},
+		{
+			name:          "stderr append 2>>",
+			input:         "cmd 2>> err.txt",
+			wantCmd:       "cmd ",
+			wantRedirects: []Redirect{{Fd: 2, Op: ">>", File: "err.txt"}},
+		},
+		{
+			name:    "multiple redirects stdout and stderr",
+			input:   "cmd > out.txt 2> err.txt",
+			wantCmd: "cmd  ",
+			wantRedirects: []Redirect{
+				{Fd: 1, Op: ">", File: "out.txt"},
+				{Fd: 2, Op: ">", File: "err.txt"},
+			},
+		},
+		{
+			name:    "redirect inside double quotes is literal",
+			input:   `echo "hello > world"`,
+			wantCmd: `echo "hello > world"`,
+		},
+		{
+			name:    "redirect inside single quotes is literal",
+			input:   `echo 'hello > world'`,
+			wantCmd: `echo 'hello > world'`,
+		},
+		{
+			name:    "missing file path after redirect",
+			input:   "echo hello >",
+			wantErr: true,
+		},
+		{
+			name:    "escaped redirect is literal",
+			input:   `echo hello \> world`,
+			wantCmd: `echo hello \> world`,
+		},
+		{
+			name:    "no redirect",
+			input:   "echo hello world",
+			wantCmd: "echo hello world",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmdPart, redirects, err := parseRedirection(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseRedirection() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil {
+				return
+			}
+			if cmdPart != tt.wantCmd {
+				t.Errorf("parseRedirection() cmdPart = %q, want %q", cmdPart, tt.wantCmd)
+			}
+			if len(redirects) != len(tt.wantRedirects) {
+				t.Errorf("parseRedirection() redirects len = %d, want %d\n  got:  %+v\n  want: %+v", len(redirects), len(tt.wantRedirects), redirects, tt.wantRedirects)
+				return
+			}
+			for i, r := range redirects {
+				want := tt.wantRedirects[i]
+				if r.Fd != want.Fd || r.Op != want.Op || r.File != want.File {
+					t.Errorf("parseRedirection() redirects[%d] = %+v, want %+v", i, r, want)
+				}
+			}
+		})
+	}
+}
