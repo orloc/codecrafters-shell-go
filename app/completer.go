@@ -109,7 +109,27 @@ func (b *builtinCompleter) Do(line []rune, pos int) ([][]rune, int) {
 		return [][]rune{[]rune(suffix)}, len(prefix)
 	}
 
-	// Multiple matches
+	// Multiple matches — compute longest common prefix
+	lcp := matches[0]
+	for _, m := range matches[1:] {
+		for !strings.HasPrefix(m, lcp) {
+			lcp = lcp[:len(lcp)-1]
+		}
+	}
+
+	if len(lcp) > len(prefix) {
+		// Complete to LCP
+		b.lastPrefix = ""
+		b.tabCount = 0
+		suffix := lcp[len(prefix):]
+		// Check if completing to the LCP leaves a single match
+		if lcp == matches[0] && len(matches) == 1 {
+			suffix += " "
+		}
+		return [][]rune{[]rune(suffix)}, len(prefix)
+	}
+
+	// LCP equals prefix — nothing to complete, use double-TAB listing
 	if prefix == b.lastPrefix {
 		b.tabCount++
 	} else {
