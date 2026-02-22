@@ -31,17 +31,19 @@ func trimInput(s string) (string, []string) {
 	// split the cmd arg out from params
 	args := strings.Split(sTrimed, " ")
 
-	return sTrimed, args[1:]
+	return args[0], args[1:]
 }
 
 func processCmd(s string, args []string) {
 	// strip the \n
 	switch s {
 	case "type":
-		if _, ok := validCmds[s]; !ok {
-			fmt.Printf("%s: not found\n", s)
+		arg := strings.Join(args, " ")
+		if _, ok := validCmds[arg]; !ok {
+			fmt.Printf("%s: not found\n", arg)
+		} else {
+			fmt.Printf("%s is a shell builtin\n", arg)
 		}
-		fmt.Printf("%s is a shell builtin\n", s)
 	case "echo":
 		fmt.Printf("%s\n", strings.Join(args, " "))
 	case "exit":
