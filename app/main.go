@@ -45,7 +45,8 @@ func trimInput(s string) (string, []string) {
 	var (
 		args       []string
 		current    strings.Builder
-		inQuote    = false
+		inSingleQ  bool
+		inDoubleQ  bool
 		hasContent = false
 	)
 
@@ -53,12 +54,17 @@ func trimInput(s string) (string, []string) {
 		ch := s[i]
 
 		switch {
-		case ch == '\'' && inQuote:
-			inQuote = false
-		case ch == '\'':
-			inQuote = true
+		case ch == '\'' && !inDoubleQ && inSingleQ:
+			inSingleQ = false
+		case ch == '\'' && !inDoubleQ:
+			inSingleQ = true
 			hasContent = true
-		case ch == ' ' && !inQuote:
+		case ch == '"' && !inSingleQ && inDoubleQ:
+			inDoubleQ = false
+		case ch == '"' && !inSingleQ:
+			inDoubleQ = true
+			hasContent = true
+		case ch == ' ' && !inSingleQ && !inDoubleQ:
 			if hasContent {
 				args = append(args, current.String())
 				current.Reset()
