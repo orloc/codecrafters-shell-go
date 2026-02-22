@@ -17,6 +17,18 @@ var registry map[string]Command
 
 func init() {
 	registry = map[string]Command{
+		"pwd": {
+			Name: "pwd",
+			Run: func(args []string) {
+				dir, err := os.Getwd()
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
+				fmt.Println(dir)
+			},
+		},
 		"echo": {
 			Name: "echo",
 			Run: func(args []string) {
