@@ -50,9 +50,7 @@ func handleInput(input string) {
 	if err = cmd.Run(); err != nil {
 		if errors.Is(err, exec.ErrNotFound) {
 			fmt.Printf("%s: command not found\n", name)
-			return
 		}
-		fmt.Println(err)
 	}
 }
 
