@@ -82,7 +82,10 @@ func initCommandTrie() {
 	}
 }
 
-type builtinCompleter struct{}
+type builtinCompleter struct {
+	lastPrefix string
+	tabCount   int
+}
 
 func (b *builtinCompleter) Do(line []rune, pos int) ([][]rune, int) {
 	prefix := string(line[:pos])
@@ -94,13 +97,34 @@ func (b *builtinCompleter) Do(line []rune, pos int) ([][]rune, int) {
 
 	if len(matches) == 0 {
 		fmt.Fprint(os.Stderr, "\x07")
+		b.lastPrefix = ""
+		b.tabCount = 0
 		return nil, 0
 	}
 
-	var candidates [][]rune
-	for _, m := range matches {
-		suffix := m[len(prefix):] + " "
-		candidates = append(candidates, []rune(suffix))
+	if len(matches) == 1 {
+		b.lastPrefix = ""
+		b.tabCount = 0
+		suffix := matches[0][len(prefix):] + " "
+		return [][]rune{[]rune(suffix)}, len(prefix)
 	}
-	return candidates, len(prefix)
+
+	// Multiple matches
+	if prefix == b.lastPrefix {
+		b.tabCount++
+	} else {
+		b.tabCount = 1
+	}
+	b.lastPrefix = prefix
+
+	if b.tabCount == 1 {
+		fmt.Fprint(os.Stderr, "\x07")
+		return nil, 0
+	}
+
+	// Second consecutive TAB: list all matches
+	fmt.Fprintf(os.Stdout, "\n%s\n$ %s", strings.Join(matches, "  "), prefix)
+	b.lastPrefix = ""
+	b.tabCount = 0
+	return nil, 0
 }
