@@ -46,6 +46,8 @@ func main() {
 //	  -> GetCommand          look up builtin; if found, run in-process
 //	     or exec.Command     otherwise spawn an external process
 func handleInput(input string) {
+	recordHistory(input)
+
 	// Split on pipes first; delegate multi-segment pipelines.
 	segments := parsePipeline(input)
 	if len(segments) > 1 {

@@ -81,6 +81,12 @@ func init() {
 				fmt.Printf("%s is %s\n", arg, p)
 			},
 		},
+		"history": {
+			Name: "history",
+			Run: func(args []string) {
+				printHistory()
+			},
+		},
 	}
 }
 
