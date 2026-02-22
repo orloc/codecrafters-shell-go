@@ -61,10 +61,10 @@ func TestTrimInput(t *testing.T) {
 			wantArgs: []string{"hello", "big world", "foo"},
 		},
 		{
-			name:     "empty quoted string is preserved",
+			name:     "empty single-quoted string is dropped",
 			input:    "echo '' foo\n",
 			wantCmd:  "echo",
-			wantArgs: []string{"", "foo"},
+			wantArgs: []string{"foo"},
 		},
 		{
 			name:     "adjacent quotes concatenate",
@@ -109,10 +109,10 @@ func TestTrimInput(t *testing.T) {
 			wantArgs: []string{"say \"hi\""},
 		},
 		{
-			name:     "empty double-quoted string is preserved",
+			name:     "empty double-quoted string is dropped",
 			input:    "echo \"\" foo\n",
 			wantCmd:  "echo",
-			wantArgs: []string{"", "foo"},
+			wantArgs: []string{"foo"},
 		},
 		{
 			name:     "double-quoted preserves tabs",
@@ -161,6 +161,30 @@ func TestTrimInput(t *testing.T) {
 			input:    "echo \\\"hello\\\"\n",
 			wantCmd:  "echo",
 			wantArgs: []string{"\"hello\""},
+		},
+		{
+			name:     "backslash in double quotes escapes backslash",
+			input:    "echo \"hello\\\\world\"\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"hello\\world"},
+		},
+		{
+			name:     "backslash in double quotes escapes double quote",
+			input:    "echo \"hello\\\"world\"\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"hello\"world"},
+		},
+		{
+			name:     "backslash in double quotes is literal for other chars",
+			input:    "echo \"test\\nvalue\"\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"test\\nvalue"},
+		},
+		{
+			name:     "backslash in double quotes literal for dollar",
+			input:    "echo \"price\\$5\"\n",
+			wantCmd:  "echo",
+			wantArgs: []string{"price\\$5"},
 		},
 		{
 			name: "empty input",

@@ -43,52 +43,51 @@ func main() {
 func trimInput(s string) (string, []string) {
 	s = strings.TrimSpace(s)
 	var (
-		args       []string
-		current    strings.Builder
-		inSingleQ  bool
-		inDoubleQ  bool
-		hasContent = false
+		args      []string
+		current   strings.Builder
+		inSingleQ = false
+		inDoubleQ = false
 	)
-
 	for i := 0; i < len(s); i++ {
 		ch := s[i]
-
 		switch {
+		case ch == '\\' && inDoubleQ:
+			// inside double quotes, only escape \ and "
+			if i+1 < len(s) && (s[i+1] == '\\' || s[i+1] == '"') {
+				i++
+				current.WriteByte(s[i])
+			} else {
+				// backslash is literal
+				current.WriteByte(ch)
+			}
 		case ch == '\\' && !inSingleQ && !inDoubleQ:
+			// outside quotes, escape next character
 			if i+1 < len(s) {
 				i++
 				current.WriteByte(s[i])
-				hasContent = true
 			}
 		case ch == '\'' && !inDoubleQ && inSingleQ:
 			inSingleQ = false
 		case ch == '\'' && !inDoubleQ:
 			inSingleQ = true
-			hasContent = true
 		case ch == '"' && !inSingleQ && inDoubleQ:
 			inDoubleQ = false
 		case ch == '"' && !inSingleQ:
 			inDoubleQ = true
-			hasContent = true
 		case ch == ' ' && !inSingleQ && !inDoubleQ:
-			if hasContent {
+			if current.Len() > 0 {
 				args = append(args, current.String())
 				current.Reset()
-				hasContent = false
 			}
 		default:
 			current.WriteByte(ch)
-			hasContent = true
 		}
 	}
-
-	if hasContent {
+	if current.Len() > 0 {
 		args = append(args, current.String())
 	}
-
 	if len(args) == 0 {
 		return "", nil
 	}
-
 	return args[0], args[1:]
 }
