@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 var commandTrie *trie
@@ -14,17 +15,34 @@ func initCommandTrie() {
 	for name := range registry {
 		commandTrie.Insert(name)
 	}
-	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			continue
-		}
-		for _, e := range entries {
-			if e.IsDir() {
-				continue
+
+	dirs := filepath.SplitList(os.Getenv("PATH"))
+	names := make(chan string, 64)
+
+	var wg sync.WaitGroup
+	for _, dir := range dirs {
+		wg.Add(1)
+		go func(dir string) {
+			defer wg.Done()
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				return
 			}
-			commandTrie.Insert(e.Name())
-		}
+			for _, e := range entries {
+				if !e.IsDir() {
+					names <- e.Name()
+				}
+			}
+		}(dir)
+	}
+
+	go func() {
+		wg.Wait()
+		close(names)
+	}()
+
+	for name := range names {
+		commandTrie.Insert(name)
 	}
 }
 

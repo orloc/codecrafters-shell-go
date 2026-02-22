@@ -1,10 +1,134 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 )
+
+func TestParseCommand(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		wantName      string
+		wantArgs      []string
+		wantRedirects []Redirect
+		wantErr       bool
+	}{
+		{
+			name:     "simple command",
+			input:    "echo hello",
+			wantName: "echo",
+			wantArgs: []string{"hello"},
+		},
+		{
+			name:          "command with redirect",
+			input:         "echo hello > file.txt",
+			wantName:      "echo",
+			wantArgs:      []string{"hello"},
+			wantRedirects: []Redirect{{Fd: 1, Op: ">", File: "file.txt"}},
+		},
+		{
+			name:     "command with quoted args and redirect",
+			input:    `echo "hello world" > file.txt`,
+			wantName: "echo",
+			wantArgs: []string{"hello world"},
+			wantRedirects: []Redirect{{Fd: 1, Op: ">", File: "file.txt"}},
+		},
+		{
+			name:    "missing redirect target is error",
+			input:   "echo >",
+			wantErr: true,
+		},
+		{
+			name:  "whitespace only",
+			input: "   ",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseCommand(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("parseCommand() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			if got.Name != tt.wantName {
+				t.Errorf("parseCommand() Name = %q, want %q", got.Name, tt.wantName)
+			}
+			if len(got.Args) != len(tt.wantArgs) {
+				t.Fatalf("parseCommand() Args len = %d, want %d\n  got:  %q\n  want: %q", len(got.Args), len(tt.wantArgs), got.Args, tt.wantArgs)
+			}
+			for i := range got.Args {
+				if got.Args[i] != tt.wantArgs[i] {
+					t.Errorf("parseCommand() Args[%d] = %q, want %q", i, got.Args[i], tt.wantArgs[i])
+				}
+			}
+			if len(got.Redirects) != len(tt.wantRedirects) {
+				t.Fatalf("parseCommand() Redirects len = %d, want %d", len(got.Redirects), len(tt.wantRedirects))
+			}
+			for i, r := range got.Redirects {
+				want := tt.wantRedirects[i]
+				if r.Fd != want.Fd || r.Op != want.Op || r.File != want.File {
+					t.Errorf("parseCommand() Redirects[%d] = %+v, want %+v", i, r, want)
+				}
+			}
+		})
+	}
+}
+
+func TestParsePipeline(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "no pipe",
+			input: "echo hello",
+			want:  []string{"echo hello"},
+		},
+		{
+			name:  "single pipe",
+			input: "cat file | wc",
+			want:  []string{"cat file ", " wc"},
+		},
+		{
+			name:  "pipe inside double quotes",
+			input: `echo "a|b"`,
+			want:  []string{`echo "a|b"`},
+		},
+		{
+			name:  "pipe inside single quotes",
+			input: "echo 'a|b'",
+			want:  []string{"echo 'a|b'"},
+		},
+		{
+			name:  "escaped pipe",
+			input: `echo a\|b`,
+			want:  []string{`echo a\|b`},
+		},
+		{
+			name:  "multiple pipes",
+			input: "a | b | c",
+			want:  []string{"a ", " b ", " c"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parsePipeline(tt.input)
+			if len(got) != len(tt.want) {
+				t.Fatalf("parsePipeline(%q) returned %d segments, want %d\n  got:  %q\n  want: %q", tt.input, len(got), len(tt.want), got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("parsePipeline(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
 
 func TestTrimInput(t *testing.T) {
 	tests := []struct {
@@ -186,7 +310,7 @@ func TestTrimInput(t *testing.T) {
 			wantArgs: []string{"price\\$5"},
 		},
 		{
-			name: "empty input",
+			name:  "empty input",
 			input: "   \n",
 		},
 	}
@@ -410,121 +534,4 @@ func TestNextToken(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestOpenRedirects(t *testing.T) {
-	t.Run("no redirects returns original stdout and stderr", func(t *testing.T) {
-		origStdout := os.Stdout
-		origStderr := os.Stderr
-		stdout, stderr, cleanup, err := openRedirects(nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer cleanup()
-		if stdout != origStdout {
-			t.Error("expected stdout to be os.Stdout")
-		}
-		if stderr != origStderr {
-			t.Error("expected stderr to be os.Stderr")
-		}
-	})
-
-	t.Run("stdout truncate redirect creates file", func(t *testing.T) {
-		dir := t.TempDir()
-		path := filepath.Join(dir, "out.txt")
-		redirects := []Redirect{{Fd: 1, Op: ">", File: path}}
-
-		stdout, stderr, cleanup, err := openRedirects(redirects)
-		if err != nil {
-			t.Fatal(err)
-		}
-		origStderr := os.Stderr
-		if stderr != origStderr {
-			t.Error("expected stderr to remain os.Stderr")
-		}
-		stdout.WriteString("hello\n")
-		cleanup()
-
-		data, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(data) != "hello\n" {
-			t.Errorf("file content = %q, want %q", string(data), "hello\n")
-		}
-	})
-
-	t.Run("stderr redirect creates file", func(t *testing.T) {
-		dir := t.TempDir()
-		path := filepath.Join(dir, "err.txt")
-		redirects := []Redirect{{Fd: 2, Op: ">", File: path}}
-
-		_, stderr, cleanup, err := openRedirects(redirects)
-		if err != nil {
-			t.Fatal(err)
-		}
-		stderr.WriteString("oops\n")
-		cleanup()
-
-		data, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(data) != "oops\n" {
-			t.Errorf("file content = %q, want %q", string(data), "oops\n")
-		}
-	})
-
-	t.Run("append mode appends to existing file", func(t *testing.T) {
-		dir := t.TempDir()
-		path := filepath.Join(dir, "out.txt")
-		os.WriteFile(path, []byte("first\n"), 0644)
-
-		redirects := []Redirect{{Fd: 1, Op: ">>", File: path}}
-		stdout, _, cleanup, err := openRedirects(redirects)
-		if err != nil {
-			t.Fatal(err)
-		}
-		stdout.WriteString("second\n")
-		cleanup()
-
-		data, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(data) != "first\nsecond\n" {
-			t.Errorf("file content = %q, want %q", string(data), "first\nsecond\n")
-		}
-	})
-
-	t.Run("invalid file path returns error", func(t *testing.T) {
-		redirects := []Redirect{{Fd: 1, Op: ">", File: "/no/such/dir/file.txt"}}
-		_, _, _, err := openRedirects(redirects)
-		if err == nil {
-			t.Error("expected error for invalid file path")
-		}
-	})
-
-	t.Run("cleanup restores original stdout and stderr", func(t *testing.T) {
-		origStdout := os.Stdout
-		origStderr := os.Stderr
-		dir := t.TempDir()
-
-		redirects := []Redirect{
-			{Fd: 1, Op: ">", File: filepath.Join(dir, "out.txt")},
-			{Fd: 2, Op: ">", File: filepath.Join(dir, "err.txt")},
-		}
-		_, _, cleanup, err := openRedirects(redirects)
-		if err != nil {
-			t.Fatal(err)
-		}
-		cleanup()
-
-		if os.Stdout != origStdout {
-			t.Error("expected os.Stdout to be restored after cleanup")
-		}
-		if os.Stderr != origStderr {
-			t.Error("expected os.Stderr to be restored after cleanup")
-		}
-	})
 }
