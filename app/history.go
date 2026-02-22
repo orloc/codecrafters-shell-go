@@ -73,14 +73,35 @@ func (h *History) WriteFile(path string) error {
 }
 
 // AppendFile appends only new (unflushed) in-memory history entries
-// to path, creating the file if it doesn't exist.
+// to path, creating the file if it doesn't exist. Trailing blank lines
+// in the existing file are trimmed before appending.
 func (h *History) AppendFile(path string) error {
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
+	// Trim trailing blank lines so appended entries follow cleanly.
+	if info, err := f.Stat(); err == nil && info.Size() > 0 {
+		size := info.Size()
+		for size > 0 {
+			buf := make([]byte, 1)
+			f.ReadAt(buf, size-1)
+			if buf[0] != '\n' {
+				break
+			}
+			size--
+		}
+		// Keep one trailing newline (end of last real line).
+		if size < info.Size() {
+			size++
+		}
+		f.Truncate(size)
+	}
+
+	// Seek to end and append.
+	f.Seek(0, 2)
 	w := bufio.NewWriter(f)
 	for _, line := range h.entries[h.lastFlushed:] {
 		fmt.Fprintln(w, line)

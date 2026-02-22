@@ -32,16 +32,16 @@ history.go       History struct with file I/O (read/write/append)
 
 ### File overview
 
-| File | Lines | Purpose |
-|------|------:|---------|
-| `parser.go` | 267 | Pipeline splitting, redirection parsing, tokenization, quote handling |
-| `pipeline.go` | 205 | Multi-segment pipe execution with goroutines for builtins |
-| `completer.go` | 144 | TAB completion with concurrent PATH scanning |
-| `history.go` | 122 | In-memory history with file persistence and flush tracking |
-| `commands.go` | 119 | Builtin command registry |
-| `main.go` | 118 | Entry point, readline loop, HISTFILE/signal handling |
-| `trie.go` | 66 | Prefix trie data structure |
-| `redirect.go` | 56 | I/O redirection file management |
+| File | Purpose |
+|------|---------|
+| `parser.go` | Pipeline splitting, redirection parsing, tokenization, quote handling |
+| `pipeline.go` | Multi-segment pipe execution with goroutines for builtins |
+| `completer.go` | TAB completion with concurrent PATH scanning |
+| `history.go` | In-memory history with file persistence and flush tracking |
+| `commands.go` | Builtin command registry |
+| `main.go` | Entry point, readline loop, HISTFILE/signal handling |
+| `trie.go` | Prefix trie data structure |
+| `redirect.go` | I/O redirection file management |
 
 ### Key design decisions
 
