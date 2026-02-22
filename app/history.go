@@ -32,6 +32,22 @@ func readHistoryFile(path string) error {
 	return scanner.Err()
 }
 
+// writeHistoryFile writes all in-memory history entries to path,
+// creating the file if it doesn't exist. Each entry is followed by a newline.
+func writeHistoryFile(path string) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	w := bufio.NewWriter(f)
+	for _, line := range commandHistory {
+		fmt.Fprintln(w, line)
+	}
+	return w.Flush()
+}
+
 // printHistory prints the last n history entries (or all if n <= 0).
 func printHistory(n int) {
 	start := 0
