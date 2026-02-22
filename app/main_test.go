@@ -85,7 +85,7 @@ func captureStdout(t *testing.T, fn func()) string {
 	return buf.String()
 }
 
-func TestProcessCmd_Echo(t *testing.T) {
+func TestEchoCommand(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
@@ -108,19 +108,24 @@ func TestProcessCmd_Echo(t *testing.T) {
 		},
 	}
 
+	cmd, ok := GetCommand("echo")
+	if !ok {
+		t.Fatal("echo command not found in registry")
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := captureStdout(t, func() {
-				processCmd("echo", tt.args)
+				cmd.Run(tt.args)
 			})
 			if got != tt.want {
-				t.Errorf("processCmd(echo) = %q, want %q", got, tt.want)
+				t.Errorf("echo(%v) = %q, want %q", tt.args, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestProcessCmd_Type(t *testing.T) {
+func TestTypeCommand(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
@@ -148,24 +153,26 @@ func TestProcessCmd_Type(t *testing.T) {
 		},
 	}
 
+	cmd, ok := GetCommand("type")
+	if !ok {
+		t.Fatal("type command not found in registry")
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := captureStdout(t, func() {
-				processCmd("type", tt.args)
+				cmd.Run(tt.args)
 			})
 			if got != tt.want {
-				t.Errorf("processCmd(type) = %q, want %q", got, tt.want)
+				t.Errorf("type(%v) = %q, want %q", tt.args, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestProcessCmd_Unknown(t *testing.T) {
-	got := captureStdout(t, func() {
-		processCmd("nonexistent", []string{})
-	})
-	want := "nonexistent: command not found\n"
-	if got != want {
-		t.Errorf("processCmd(unknown) = %q, want %q", got, want)
+func TestUnknownCommand(t *testing.T) {
+	_, ok := GetCommand("nonexistent")
+	if ok {
+		t.Error("expected nonexistent command to not be found in registry")
 	}
 }
